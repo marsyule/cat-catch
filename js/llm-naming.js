@@ -8,6 +8,11 @@ const LLMNaming = {
     cache: new Map(),
     // 正在进行的请求
     pendingRequests: new Map(),
+    // 请求队列和限流
+    requestQueue: [],
+    isProcessingQueue: false,
+    maxConcurrentRequests: 3,
+    currentRequests: 0,
 
     /**
      * 调用 LLM API 生成文件名
@@ -33,7 +38,15 @@ const LLMNaming = {
             return this.pendingRequests.get(cacheKey);
         }
 
+        // 限流：如果并发请求过多，加入队列
+        if (this.currentRequests >= this.maxConcurrentRequests) {
+            return new Promise((resolve) => {
+                this.requestQueue.push({ data, context, resolve });
+            });
+        }
+
         // 创建新请求
+        this.currentRequests++;
         const requestPromise = this._callAPI(data, context);
         this.pendingRequests.set(cacheKey, requestPromise);
 
@@ -50,6 +63,19 @@ const LLMNaming = {
             return result;
         } finally {
             this.pendingRequests.delete(cacheKey);
+            this.currentRequests--;
+            // 处理队列中的下一个请求
+            this.processQueue();
+        }
+    },
+
+    /**
+     * 处理请求队列
+     */
+    processQueue() {
+        if (this.requestQueue.length > 0 && this.currentRequests < this.maxConcurrentRequests) {
+            const { data, context, resolve } = this.requestQueue.shift();
+            this.generateFilename(data, context).then(resolve);
         }
     },
 
@@ -94,12 +120,19 @@ const LLMNaming = {
             const result = await response.json();
 
             if (result.choices && result.choices[0] && result.choices[0].message) {
-                let filename = result.choices[0].message.content.trim();
+                let filename = result.choices[0].message.content;
+                // 检查内容是否为空
+                if (!filename || typeof filename !== 'string') {
+                    console.error('LLM API returned empty content');
+                    return null;
+                }
+                filename = filename.trim();
                 // 清理文件名中的非法字符
                 filename = this.sanitizeFilename(filename);
                 return filename;
             }
 
+            console.error('LLM API unexpected response format:', result);
             return null;
         } catch (e) {
             console.error('LLM naming error:', e);
@@ -181,7 +214,9 @@ const LLMNaming = {
      * 生成缓存键
      */
     getCacheKey(data, context) {
-        const key = `${data.title || ''}_${data.ext || ''}_${context.metaDescription || ''}_${context.ogTitle || ''}`;
+        // 加入 URL 避免不同页面相同标题导致缓存冲突
+        const urlHost = data.webUrl ? new URL(data.webUrl).hostname : '';
+        const key = `${urlHost}_${data.title || ''}_${data.ext || ''}_${context.metaDescription?.substring(0, 50) || ''}`;
         return key.substring(0, 100);
     },
 
