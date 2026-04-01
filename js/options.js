@@ -47,6 +47,12 @@ chrome.storage.sync.get(G.OptionLists, function (items) {
                 $(`#${key}`).val(items[key]);
             }
         }
+        // 敏感配置从 local storage 读取
+        (chrome.storage.session ?? chrome.storage.local).get(G.LocalVar, function (localItems) {
+            if (localItems.llmApiKey !== undefined) {
+                $("#llmApiKey").val(localItems.llmApiKey);
+            }
+        });
     }, 100);
 });
 
@@ -185,6 +191,11 @@ $("[save='select']").on("change", function () {
     chrome.storage.sync.set({ [this.id]: val });
 });
 
+// API Key 敏感信息保存到本地存储（不同步）
+$("#llmApiKey").on("input", function () {
+    (chrome.storage.session ?? chrome.storage.local).set({ llmApiKey: $(this).val() });
+});
+
 // 一键禁用/启用
 $("#allDisable, #allEnable").bind("click", function () {
     const state = this.id == "allEnable";
@@ -301,6 +312,8 @@ $("#testRegex, #testUrl").keyup(function () {
 //导出配置
 $("#exportOptions").bind("click", function () {
     chrome.storage.sync.get(null, function (items) {
+        // 移除敏感信息
+        delete items.llmApiKey;
         let ExportData = JSON.stringify(items);
         ExportData = "data:text/plain," + Base64.encode(ExportData);
         let date = new Date();

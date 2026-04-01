@@ -195,7 +195,6 @@ G.OptionLists = {
     // 智能命名配置
     llmNaming: false,                    // 是否启用大模型命名
     llmApiUrl: "",                       // API 地址
-    llmApiKey: "",                       // API Key
     llmModel: "gpt-3.5-turbo",           // 模型名称
     llmContextLevel: 0,                  // 上下文级别: 0=标题+描述, 1=标题+页面元素, 2=完整页面
     llmPrompt: "请根据以下信息为这个媒体资源生成一个简洁友好的中文文件名（不要包含扩展名）：",  // 自定义提示词
@@ -208,6 +207,7 @@ G.LocalVar = {
     mediaControl: { tabid: 0, index: -1 },
     previewShowTitle: false, // 是否显示标题
     previewDeleteDuplicateFilenames: false, // 是否删除重复文件名
+    llmApiKey: "",  // API Key（敏感信息，仅本地存储）
 };
 
 // 102版本以上 非Firefox 开启更多功能
@@ -396,6 +396,11 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
         }
         if (key == "featMobileTabId" || key == "featAutoDownTabId") {
             G[key] = new Set(newValue);
+            continue;
+        }
+        if (key == "llmApiKey") {
+            // API Key 从 local storage 更新
+            G.llmApiKey = newValue;
             continue;
         }
         if (key == "sidePanel" && !G.isFirefox) {
