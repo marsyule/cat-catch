@@ -32,6 +32,7 @@
       <li><a href="#anchorOtherSettings" data-i18n="otherSettings" title="otherSettings"></a></li>
       <li><a href="#anchorCustomCSS" data-i18n="customCSS" title="customCSS"></a></li>
       <li><a href="#anchorMQTT" data-i18n="MQTT" title="MQTT"></a></li>
+      <li><a href="#anchorLLMNaming" title="智能命名">智能命名</a></li>
       <li><a href="#anchorOperation" data-i18n="operation" title="operation"></a></li>
       <li><a href="#anchorAbout" data-i18n="about" title="about"></a></li>
     </ul>
@@ -874,6 +875,74 @@
               <a href="https://o2bmm.gitbook.io/cat-catch/docs/tag" target="_blank" data-i18n="replaceKeywordList"></a>
               <span data-i18n="mqttDataFormatDefault"></span>
             </div>
+          </div>
+
+          <div class="flex-end">
+            <button type="button" class="resetOption" data-i18n="resetSettings"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 智能命名 -->
+    <section id="anchorLLMNaming">
+      <h1 class="optionsTitle">
+        <span>🤖</span>
+        <span>智能命名</span>
+      </h1>
+      <div class="optionBox" id="llmNamingOption">
+        <span class="explain">
+          <span>启用大模型智能命名后，捕获的资源将自动生成更友好的文件名。</span>
+          <p>支持 OpenAI 兼容的 API（如 OpenAI、Claude、本地 Ollama 等）。</p>
+        </span>
+        <div class="list loose">
+          <div class="item">
+            <div>启用智能命名</div>
+            <div class="switch">
+              <label class="switchLabel switchRadius">
+                <input type="checkbox" id="llmNaming" save="click" class="switchInput" />
+                <span class="switchRound switchRadius"><em class="switchRoundBtn switchRadius"></em></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="item">
+            <div>API 地址</div>
+            <input id="llmApiUrl" save="input" type="text" class="width100"
+              placeholder="https://api.openai.com/v1/chat/completions" />
+            <div class="help-text">OpenAI 兼容的 API 端点地址</div>
+          </div>
+
+          <div class="item">
+            <div>API Key</div>
+            <input id="llmApiKey" save="input" type="password" class="width100" placeholder="sk-..." />
+            <div class="help-text">API 密钥，本地 Ollama 可留空</div>
+          </div>
+
+          <div class="item">
+            <div>模型名称</div>
+            <input id="llmModel" save="input" type="text" class="width100" value="gpt-3.5-turbo"
+              placeholder="gpt-3.5-turbo / gpt-4 / claude-3-opus 等" />
+            <div class="help-text">如使用 Ollama，填写本地模型名如 llama2</div>
+          </div>
+
+          <div class="item">
+            <div>上下文范围</div>
+            <div class="switch switchSelect">
+              <select id="llmContextLevel" class="select" save="select">
+                <option value="0">标题+描述（推荐）</option>
+                <option value="1">标题+页面元素</option>
+                <option value="2">完整页面内容</option>
+              </select>
+            </div>
+            <div class="help-text">发送给大模型的页面信息范围，范围越大 token 消耗越多</div>
+          </div>
+
+          <div class="item">
+            <div>自定义提示词</div>
+            <textarea id="llmPrompt" save="input" class="width100" rows="3"
+              placeholder="请根据以下信息为这个媒体资源生成一个简洁友好的中文文件名（不要包含扩展名）："></textarea>
+            <div class="help-text">自定义发送给大模型的提示词</div>
           </div>
 
           <div class="flex-end">

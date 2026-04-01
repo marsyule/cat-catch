@@ -60,6 +60,36 @@ function AddMedia(data, currentTab = true) {
     data.title = stringModify(data.title);
     //文件名
     data.name = isEmpty(data.name) ? data.title + '.' + data.ext : decodeURIComponent(stringModify(data.name));
+
+    // 智能命名处理
+    if (G.llmNaming && G.llmApiUrl && data.tabId && data.tabId > 0) {
+        // 异步获取智能名称，先使用默认名称显示
+        const originalName = data.name;
+        LLMNaming.extractContext(data.tabId).then(async (context) => {
+            const smartName = await LLMNaming.generateFilename(data, context);
+            if (smartName) {
+                data.name = smartName + '.' + data.ext;
+                data.downFileName = G.TitleName ? templates(G.downFileName, data) : data.name;
+                data.downFileName = filterFileName(data.downFileName);
+                if (isEmpty(data.downFileName)) {
+                    data.downFileName = data.name;
+                }
+                // 更新UI显示
+                if (data.html) {
+                    let displayTrimName = data.name;
+                    if (data.name.length >= 50 && !_tabId) {
+                        displayTrimName = displayTrimName.substring(0, 20) + '...' + displayTrimName.substring(displayTrimName.length - 30);
+                    }
+                    data.html.find('.name').text(displayTrimName);
+                    // 更新下载链接
+                    data.html.find('a[download]').attr('download', data.downFileName);
+                }
+            }
+        }).catch(e => {
+            console.log('LLM naming failed:', e);
+        });
+    }
+
     //截取文件名长度
     let trimName = data.name;
     if (data.name && data.name.length >= 50 && !_tabId) {

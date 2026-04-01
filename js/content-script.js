@@ -169,6 +169,19 @@
             sendResponse(document.documentElement.outerHTML);
             return true;
         }
+        // 获取页面上下文（用于智能命名）
+        if (Message.Message == "getPageContext") {
+            const context = {
+                title: document.title,
+                metaDescription: document.querySelector('meta[name="description"]')?.content || '',
+                ogTitle: document.querySelector('meta[property="og:title"]')?.content || '',
+                ogDescription: document.querySelector('meta[property="og:description"]')?.content || '',
+                pageElements: extractMediaElements(),
+                pageContent: document.body?.innerText?.substring(0, 2000) || ''
+            };
+            sendResponse(context);
+            return true;
+        }
     });
 
     // Heart Beat
@@ -180,6 +193,27 @@
         Port.onDisconnect.addListener(connect);
     }
     connect();
+
+    // 提取媒体相关元素信息（用于智能命名）
+    function extractMediaElements() {
+        const elements = [];
+        // 提取标题相关元素
+        document.querySelectorAll('h1, h2, .video-title, .title, [class*="title"], [class*="video-name"]').forEach(el => {
+            const text = el.innerText?.trim();
+            if (text && text.length > 2 && text.length < 100) {
+                elements.push(text);
+            }
+        });
+        // 提取作者/上传者信息
+        document.querySelectorAll('[class*="author"], [class*="uploader"], [class*="user"]').forEach(el => {
+            const text = el.innerText?.trim();
+            if (text && text.length > 1 && text.length < 50) {
+                elements.push('作者: ' + text);
+            }
+        });
+        // 去重并限制数量
+        return [...new Set(elements)].slice(0, 5).join('\n');
+    }
 
     function secToTime(sec) {
         let time = "";
