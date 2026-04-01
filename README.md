@@ -42,6 +42,31 @@ https://o2bmm.gitbook.io/cat-catch/
 ![popup界面](https://raw.githubusercontent.com/xifangczy/cat-catch/master/README/popup.png)
 ![m3u8解析器界面](https://raw.githubusercontent.com/xifangczy/cat-catch/master/README/m3u8.png)
 
+# 🤖智能命名（新功能）
+支持大模型智能命名，让捕获的资源文件名更加友好易读。
+
+## 功能特点
+- 支持 OpenAI 兼容的 API（OpenAI、Claude、本地 Ollama 等）
+- 三级上下文范围可选：标题+描述 / 标题+页面元素 / 完整页面内容
+- 自动生成简洁友好的中文文件名
+- 内置缓存机制，避免重复调用 API
+- API Key 仅保存在本地，不会同步到其他设备
+
+## 配置方法
+1. 打开扩展设置页面
+2. 找到"智能命名"区域
+3. 开启"启用智能命名"开关
+4. 配置 API 地址（如 `https://api.openai.com/v1/chat/completions`）
+5. 填写 API Key 和模型名称
+
+## 支持的 API
+| 服务商 | API 地址示例 |
+|--------|-------------|
+| OpenAI | `https://api.openai.com/v1/chat/completions` |
+| Claude | `https://api.anthropic.com/v1/messages` |
+| Ollama | `http://localhost:11434/v1/chat/completions` |
+| 其他 | 任何 OpenAI 兼容的 API 端点 |
+
 # 🤚🏻免责
 本扩展仅供下载用户拥有版权或已获授权的视频，禁止用于下载受版权保护且未经授权的内容。用户需自行承担使用本工具的全部法律责任，开发者不对用户的任何行为负责。本工具按“原样”提供，开发者不承担任何直接或间接责任。
 
