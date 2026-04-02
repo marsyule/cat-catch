@@ -54,6 +54,38 @@ chrome.downloads.onChanged.addListener(function (item) {
 // 复选框状态 点击返回或者全选后 影响新加入的资源 复选框勾选状态
 let checkboxState = true;
 
+function getSmartNameConflictSuffix(data) {
+    if (!data.url) {
+        return data.ext || 'media';
+    }
+    try {
+        const url = new URL(data.url);
+        const fileName = decodeURIComponent(url.pathname.split('/').pop() || '');
+        const baseName = fileName.replace(/\.[^.]+$/, '');
+        if (baseName) {
+            return stringModify(baseName).slice(0, 24);
+        }
+        for (const key of ['id', 'vid', 'quality', 'itag']) {
+            const value = url.searchParams.get(key);
+            if (value) {
+                return `${key}-${stringModify(value).slice(0, 24)}`;
+            }
+        }
+    } catch (e) { }
+    return data.ext || 'media';
+}
+
+function ensureUniqueSmartName(data, smartName) {
+    if (!smartName) {
+        return smartName;
+    }
+    const duplicateExists = getAllData().some((item) => item !== data && item.name === `${smartName}.${data.ext}`);
+    if (!duplicateExists) {
+        return smartName;
+    }
+    return `${smartName}_${getSmartNameConflictSuffix(data)}`;
+}
+
 // 生成资源DOM
 function AddMedia(data, currentTab = true) {
     data._title = data.title;
@@ -64,11 +96,11 @@ function AddMedia(data, currentTab = true) {
     // 智能命名处理
     if (G.llmNaming && G.llmApiUrl && data.tabId && data.tabId > 0) {
         // 异步获取智能名称，先使用默认名称显示
-        const originalName = data.name;
         LLMNaming.extractContext(data.tabId).then(async (context) => {
             const smartName = await LLMNaming.generateFilename(data, context);
             if (smartName) {
-                data.name = smartName + '.' + data.ext;
+                const uniqueSmartName = ensureUniqueSmartName(data, smartName);
+                data.name = uniqueSmartName + '.' + data.ext;
                 data.downFileName = G.TitleName ? templates(G.downFileName, data) : data.name;
                 data.downFileName = filterFileName(data.downFileName);
                 if (isEmpty(data.downFileName)) {

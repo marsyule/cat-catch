@@ -355,6 +355,73 @@ $("#importOptions").bind("click", function () {
     $("#importOptionsFile").click();
 });
 
+$("#testLLMConfig").bind("click", async function () {
+    const $button = $(this);
+    const $result = $("#llmTestResult");
+    const apiUrl = $("#llmApiUrl").val().trim();
+    const apiKey = $("#llmApiKey").val().trim();
+    const model = $("#llmModel").val().trim();
+
+    if (!apiUrl) {
+        $result.text("请先填写 API 地址。");
+        return;
+    }
+    if (!model) {
+        $result.text("请先填写模型名称。");
+        return;
+    }
+
+    $button.prop("disabled", true);
+    $result.text("正在测试，请稍候...");
+
+    try {
+        const headers = {
+            "Content-Type": "application/json"
+        };
+        if (apiKey) {
+            headers["Authorization"] = `Bearer ${apiKey}`;
+        }
+
+        const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify({
+                model: model,
+                messages: [
+                    {
+                        role: "system",
+                        content: "你是一个接口连通性测试助手。"
+                    },
+                    {
+                        role: "user",
+                        content: "请只返回“测试成功”四个字。"
+                    }
+                ],
+                max_tokens: 20,
+                temperature: 0
+            })
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            $result.text(`测试失败：HTTP ${response.status} ${response.statusText}${errorText ? `，${errorText.substring(0, 200)}` : ""}`);
+            return;
+        }
+
+        const result = await response.json();
+        const content = result?.choices?.[0]?.message?.content?.trim();
+        if (!content) {
+            $result.text("测试失败：接口已响应，但返回内容格式不是预期的 OpenAI 兼容格式。");
+            return;
+        }
+        $result.text(`测试成功：${content}`);
+    } catch (e) {
+        $result.text(`测试失败：${e.message || e}`);
+    } finally {
+        $button.prop("disabled", false);
+    }
+});
+
 function SaveGetVal(Obj) {
     let text = Obj.find("[name=text]").val()?.trim();
     let size = Obj.find("[name=size]").val()?.trim();

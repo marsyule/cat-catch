@@ -8,6 +8,9 @@ const LLMNaming = {
     cache: new Map(),
     // 正在进行的请求
     pendingRequests: new Map(),
+    // 页面上下文短缓存，避免页面瞬时切换导致旧资源重命名
+    contextCache: new Map(),
+    contextCacheTTL: 30000,
     // 请求队列和限流
     requestQueue: [],
     isProcessingQueue: false,
@@ -26,7 +29,7 @@ const LLMNaming = {
         }
 
         // 生成缓存键
-        const cacheKey = this.getCacheKey(data, context);
+        const cacheKey = this.getCacheKey(data);
 
         // 检查缓存
         if (this.cache.has(cacheKey)) {
@@ -152,6 +155,8 @@ const LLMNaming = {
         // 基础信息
         content += `网页标题: ${data.title || '未知'}\n`;
         content += `资源类型: ${data.type || data.ext || '未知'}\n`;
+        content += `资源原始文件名: ${this.getOriginalName(data)}\n`;
+        content += `资源标识: ${this.getResourceHint(data)}\n`;
 
         // 添加 URL 域名信息
         if (data.webUrl) {
@@ -161,6 +166,9 @@ const LLMNaming = {
             } catch (e) {
                 content += `来源网址: ${data.webUrl}\n`;
             }
+        }
+        if (data.url) {
+            content += `资源URL: ${data.url}\n`;
         }
 
         // 页面描述信息
@@ -184,6 +192,8 @@ const LLMNaming = {
             content += `\n页面内容摘要:\n${contentPreview}\n`;
         }
 
+        content += '\n请结合资源标识区分同一页面中的不同资源，优先保留能体现差异的信息。';
+
         return content;
     },
 
@@ -199,13 +209,21 @@ const LLMNaming = {
                 return;
             }
 
+            const cachedContext = this.contextCache.get(tabId);
+            if (cachedContext && Date.now() - cachedContext.timestamp < this.contextCacheTTL) {
+                resolve(cachedContext.data);
+                return;
+            }
+
             chrome.tabs.sendMessage(tabId, { Message: 'getPageContext' }, (response) => {
                 if (chrome.runtime.lastError) {
                     console.log('Get page context error:', chrome.runtime.lastError);
                     resolve({});
                     return;
                 }
-                resolve(response || {});
+                const context = response || {};
+                this.contextCache.set(tabId, { data: context, timestamp: Date.now() });
+                resolve(context);
             });
         });
     },
@@ -213,11 +231,64 @@ const LLMNaming = {
     /**
      * 生成缓存键
      */
-    getCacheKey(data, context) {
-        // 加入 URL 避免不同页面相同标题导致缓存冲突
-        const urlHost = data.webUrl ? new URL(data.webUrl).hostname : '';
-        const key = `${urlHost}_${data.title || ''}_${data.ext || ''}_${context.metaDescription?.substring(0, 50) || ''}`;
-        return key.substring(0, 100);
+    getCacheKey(data) {
+        const normalizedUrl = this.normalizeUrl(data.url);
+        const originalName = this.getOriginalName(data);
+        return [
+            data.webUrl || '',
+            normalizedUrl,
+            originalName,
+            data.ext || '',
+            data.type || '',
+            data.initiator || ''
+        ].join('|').substring(0, 500);
+    },
+
+    normalizeUrl(url) {
+        if (!url) {
+            return '';
+        }
+        try {
+            const parsed = new URL(url);
+            return `${parsed.origin}${parsed.pathname}${parsed.search}`;
+        } catch (e) {
+            return url;
+        }
+    },
+
+    getOriginalName(data) {
+        if (data.name) {
+            return data.name;
+        }
+        if (!data.url) {
+            return '未知';
+        }
+        try {
+            const parsed = new URL(data.url);
+            const pathName = decodeURIComponent(parsed.pathname.split('/').pop() || '');
+            return pathName || '未知';
+        } catch (e) {
+            return '未知';
+        }
+    },
+
+    getResourceHint(data) {
+        if (!data.url) {
+            return data.ext || data.type || 'unknown';
+        }
+        try {
+            const parsed = new URL(data.url);
+            const fileName = decodeURIComponent(parsed.pathname.split('/').pop() || '');
+            const queryParts = [];
+            ['id', 'vid', 'name', 'filename', 'quality', 'itag', 'token'].forEach((key) => {
+                const value = parsed.searchParams.get(key);
+                value && queryParts.push(`${key}=${value}`);
+            });
+            const hint = [fileName, ...queryParts].filter(Boolean).join(' | ');
+            return hint || parsed.pathname || data.ext || data.type || 'unknown';
+        } catch (e) {
+            return data.url;
+        }
     },
 
     /**
@@ -248,5 +319,6 @@ const LLMNaming = {
      */
     clearCache() {
         this.cache.clear();
+        this.contextCache.clear();
     }
 };
