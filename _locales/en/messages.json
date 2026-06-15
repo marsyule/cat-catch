@@ -1008,7 +1008,7 @@
     "message": "Always enable deep search"
   },
   "sideurlprotocol": {
-    "message": "Protocolo URL m3u8dl"
+    "message": "m3u8dl URL Protocol"
   },
   "deleteDuplicateFilenames": {
     "message": "Delete duplicate filenames"
@@ -1027,5 +1027,17 @@
   },
   "iframeFFmpeg": {
     "message": "Use iframe to call FFmpeg"
+  },
+  "send2localTips": {
+    "message": "Merge data before sending? Click 'OK' to merge, or 'Cancel' to send individually."
+  },
+  "removeFailedPreviewFiles": {
+    "message": "Remove failed preview files"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "contextMenus": {
+    "message": "Right-click menu"
   }
 }

@@ -82,7 +82,9 @@
       <button go="ffmpegURL" class="button2" title="FFmpeg">FFmpeg</button>
     </div>
   </div>
-  <div id="maybeKey" class="container hide"></div>
+  <div id="maybeKey" class="container hide">
+    <button id="maybeKeyCopy" data-i18n="copy" title="Copy" class="button2"></button>
+  </div>
   <div id="filter" class="more">
     <span id="regular" class="width100 regular">
       <input type="text" data-i18n-placeholder="regularFilterPlaceholder" title="Regular Filter" /><button
@@ -116,7 +118,7 @@
     <button id="AllCopy" data-i18n="copy" title="Copy selected items to clipboard"></button>
     <button id="AllSelect" data-i18n="selectAll" class="hide" title="Select all items"></button>
     <button id="invertSelection" data-i18n="invertSelection" title="Invert selection"></button>
-    <button id="openFilter" panel="filter" data-i18n="filter" title="Open filter options" class="hide"></button>
+    <button id="openFilter" panel="filter" data-i18n="filter" title="Open filter options"></button>
     <button id="Clear" data-i18n="clear" title="Clear all items"></button>
     <button id="search" class="button2 hide firefoxHideScript" type="script" data-i18n="deepSearch"
       title="Perform deep search"></button>
@@ -131,7 +133,7 @@
   <!-- <script src="js/firefox.js"></script> -->
   <script src="lib/base64.js"></script>
   <script src="lib/mqtt.min.js"></script>
-  <script src="js/pupup-utils.js"></script>
+  <script src="js/popup-utils.js"></script>
   <script src="js/popup.js"></script>
   <script src="js/media-control.js"></script>
   <script src="lib/jquery.qrcode.min.js"></script>

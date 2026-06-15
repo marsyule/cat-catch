@@ -1,8 +1,10 @@
 // url 参数解析
 const params = new URL(location.href).searchParams;
 const _requestId = params.get("requestId") ? params.get("requestId").split(",") : [];   // 要下载得资源ID
+const _JSON = params.get("JSON") ? JSON.parse(params.get("JSON")) : null;   // 直接传递数据的参数
 const _ffmpeg = params.get("ffmpeg");   // 启用在线FFmpeg
 let _downStream = params.get("downStream"); // 启用边下边存 流式下载
+const _autoClose = params.get("autoClose"); // 下载完成后自动关闭页面
 const _data = [];   // 通过_requestId获取得到得数据
 const _taskId = Date.parse(new Date()); // 配合ffmpeg使用的任务ID 以便在线ffmpeg通过ID知道文件属于哪些任务
 let _tabId = null;  // 当前页面tab id
@@ -14,6 +16,10 @@ const downloadData = localStorage.getItem('downloadData') ? JSON.parse(localStor
 let iframeFFmpeg = null; // iframe FFmpeg窗口对象
 let iframeFFmpegReady = false; // iframe FFmpeg是否准备就绪
 
+if (_JSON) {
+    _data.push(_JSON);
+}
+
 awaitG(() => {
     loadCSS();
     // 获取当前标签信息
@@ -22,7 +28,7 @@ awaitG(() => {
         _index = tabs.index;
 
         // 如果没有requestId 显示 提交表单
-        if (!_requestId.length) {
+        if (!_requestId.length && !_JSON) {
             $("#downStream").prop("checked", G.downStream);
             $("#getURL, .newDownload").toggle();
             $("#getURL_btn").click(function () {
@@ -100,7 +106,7 @@ function start() {
         }
     }
 
-    $("#autoClose").prop("checked", G.downAutoClose);
+    $("#autoClose").prop("checked", _autoClose || G.downAutoClose);
     streamSaver.mitm = G.streamSaverConfig.url;
 
     const $downBox = $("#downBox"); // 下载列表容器

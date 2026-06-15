@@ -258,6 +258,13 @@
             <div>Aria2 RPC <span data-i18n-outer="address"></span></div>
             <input id="aria2Rpc" save="input" type="text" class="width100">
           </div>
+
+          <div class="item">
+            <div><span data-i18n-outer="downloadDir"></span></div>
+            <input id="aria2RpcDir" save="input" type="text" class="width100"
+              placeholder="D:\downloads or /home/user/downloads">
+          </div>
+
           <div class="flex-end">
             <button type="button" class="resetOption" data-i18n="resetSettings"></button>
           </div>
@@ -330,6 +337,12 @@
               <a href="https://o2bmm.gitbook.io/cat-catch/docs/tag" target="_blank" data-i18n="replaceKeywordList"></a>
             </div>
             <textarea id="send2localBody" save="input" class="width100 break-all" rows="3"></textarea>
+          </div>
+
+          <div class="item">
+            <div data-i18n="requestHeaders"></div>
+            <input id="send2localHeaders" save="input" type="text" class="width100"
+              placeholder='{"header1":"value1","header2":"value2"}'>
           </div>
 
           <div class="flex-end">
@@ -756,6 +769,16 @@
             <div class="switch">
               <label class="switchLabel switchRadius">
                 <input type="checkbox" id="iframeFFmpeg" save="click" class="switchInput" />
+                <span class="switchRound switchRadius"><em class="switchRoundBtn switchRadius"></em></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="item">
+            <div data-i18n="contextMenus"></div>
+            <div class="switch">
+              <label class="switchLabel switchRadius">
+                <input type="checkbox" id="contextMenus" save="click" class="switchInput" />
                 <span class="switchRound switchRadius"><em class="switchRoundBtn switchRadius"></em></span>
               </label>
             </div>

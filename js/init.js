@@ -2,7 +2,7 @@
 if (chrome.i18n.getMessage === undefined) {
     chrome.i18n.getMessage = (key) => key;
     fetch(chrome.runtime.getURL("_locales/zh_CN/messages.json")).then(res => res.json()).then(data => {
-        chrome.i18n.getMessage = (key) => data[key].messages;
+        chrome.i18n.getMessage = (key) => data[key].message;
     }).catch((e) => { console.error(e); });
 }
 /**
@@ -142,23 +142,34 @@ G.OptionLists = {
     downActive: !G.isMobile,    // 手机端默认不启用 后台下载
     downAutoClose: true,
     downStream: false,
+
+    // Aria2
     aria2Rpc: "http://localhost:6800/jsonrpc",
     enableAria2Rpc: false,
     enableAria2RpcReferer: true,
     aria2RpcToken: "",
+    aria2RpcDir: "",
+
     m3u8AutoDown: true,
     badgeNumber: true,
+
+    // 发送到本地
     send2local: false,
     send2localManual: false,
     send2localURL: "http://127.0.0.1:8000/",
     send2localMethod: 'POST',
     send2localBody: '{"action": "${action}", "data": ${data}, "tabId": "${tabId}"}',
     send2localType: 0,
+    send2localHeaders: "",
+
     popup: false,
     popupMode: 0, // 0:preview.html 1:popup.html 2:window preview.html 3: window popup.html
+
+    // 远程调用
     invoke: false,
     invokeText: `m3u8dlre:"\${url}" --save-dir "%USERPROFILE%\\Downloads" --del-after-done --save-name "\${title}_\${now}" --auto-select \${referer|exists:'-H "Referer: *"'}`,
     invokeConfirm: false,
+
     // m3u8解析器默认参数
     M3u8Thread: 6,
     M3u8Mp4: false,
@@ -167,6 +178,7 @@ G.OptionLists = {
     M3u8StreamSaver: false,
     M3u8Ffmpeg: true,
     M3u8AutoClose: false,
+
     // 第三方服务地址
     onlineServiceAddress: 0,
     chromeLimitSize: 1.8 * 1024 * 1024 * 1024,
@@ -189,9 +201,11 @@ G.OptionLists = {
     mqttQos: 0,
     mqttTitleLength: 100,
     mqttDataFormat: "",
+
     getHtmlDOM: false,
     damn: false,
     iframeFFmpeg: false,
+    contextMenus: false,
 };
 
 // 本地储存的配置
@@ -320,6 +334,9 @@ function InitOptions() {
         // 侧边栏
         chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: items.sidePanel });
 
+        // 右键菜单注册
+        contextMenusInit(items.contextMenus);
+
         G = { ...items, ...G };
 
         // 初始化 G.blockUrlSet
@@ -395,9 +412,61 @@ chrome.storage.onChanged.addListener(function (changes, namespace) {
             chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: newValue });
             continue;
         }
+        if (key == "contextMenus") {
+            contextMenusInit(newValue);
+            continue;
+        }
         G[key] = newValue;
     }
 });
+
+function contextMenusInit(visible = false) {
+    // 注册右键
+    chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({
+            id: "cat-catch",
+            title: i18n.catCatch,
+            contexts: ["page", "image"],
+            visible: visible
+        });
+        chrome.contextMenus.create({
+            id: "image-save",
+            parentId: "cat-catch",
+            title: i18n.save,
+            contexts: ["image"]
+        });
+        chrome.contextMenus.create({
+            id: "enable",
+            parentId: "cat-catch",
+            title: `${i18n.enable} / ${i18n.disable}`,
+            contexts: ["page", "image"]
+        });
+        chrome.contextMenus.create({
+            id: "preview",
+            parentId: "cat-catch",
+            title: i18n.preview,
+            contexts: ["page", "image"]
+        });
+        chrome.contextMenus.create({
+            id: "deepSearch",
+            parentId: "cat-catch",
+            title: i18n.deepSearch,
+            contexts: ["page", "image"]
+        });
+        chrome.contextMenus.create({
+            id: "catch",
+            parentId: "cat-catch",
+            title: i18n.cacheCapture,
+            contexts: ["page", "image"]
+        });
+        chrome.contextMenus.create({
+            id: "auto_down",
+            parentId: "cat-catch",
+            title: i18n.autoDownload,
+            contexts: ["page", "image"]
+        });
+    });
+}
 
 // 扩展升级，清空本地储存
 chrome.runtime.onInstalled.addListener(function (details) {

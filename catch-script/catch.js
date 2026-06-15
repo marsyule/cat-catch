@@ -134,12 +134,13 @@
                 <div id="tips"></div>
                 <button id="download" ${buttonStyle} data-i18n="downloadCapturedData">下载已捕获的数据</button>
                 <button id="clean" ${buttonStyle} data-i18n="deleteCapturedData">删除已捕获数据</button>
-                <div><button id="hide" ${buttonStyle} data-i18n="hide">隐藏</button><button id="close" ${buttonStyle} data-i18n="close">关闭</button></div>
+                <div><button id="hide" ${buttonStyle} data-i18n="hide">隐藏</button><!--button id="close" ${buttonStyle} data-i18n="close">关闭</button--></div>
                 <label><input type="checkbox" id="autoDown" ${localStorage.getItem("CatCatchCatch_autoDown") || ""} ${checkboxStyle}><span data-i18n="automaticDownload">完成捕获自动下载</span></label>
                 <label><input type="checkbox" id="ffmpeg" ${localStorage.getItem("CatCatchCatch_ffmpeg") || ""} ${checkboxStyle}><span data-i18n="ffmpeg">使用ffmpeg合并</span></label>
                 <label><input type="checkbox" id="autoToBuffered" ${checkboxStyle}><span data-i18n="autoToBuffered">自动跳转缓冲尾</span></label>
                 <label><input type="checkbox" id="checkHead" ${checkboxStyle}><span data-i18n="checkHead">清理多余头部数据</span></label>
                 <label><input type="checkbox" id="completeClearCache" ${localStorage.getItem("CatCatchCatch_completeClearCache") || ""} ${checkboxStyle}><span data-i18n="completeClearCache">下载完成后清空数据</span></label>
+                <label><input type="checkbox" id="save1GB" ${localStorage.getItem("CatCatchCatch_save1GB") || ""} ${checkboxStyle}><span data-i18n="save1GB">每1GB保存一次</span></label>
                 <details>
                     <summary data-i18n="fileName" id="summary">文件名设置</summary>
                     <div style="font-weight:bold;"><span data-i18n="fileName">文件名</span>: </div><div id="fileName"></div>
@@ -286,8 +287,8 @@
             const img = this.catCatch.querySelector("img");
             if (img) img.addEventListener('click', this.handleHide.bind(this));
 
-            const close = this.catCatch.querySelector("#close");
-            if (close) close.addEventListener('click', this.handleClose.bind(this));
+            // const close = this.catCatch.querySelector("#close");
+            // if (close) close.addEventListener('click', this.handleClose.bind(this));
 
             const restart = this.catCatch.querySelector("#restart");
             if (restart) restart.addEventListener('click', this.handleRestart.bind(this));
@@ -303,6 +304,11 @@
 
             const completeClearCache = this.catCatch.querySelector("#completeClearCache");
             if (completeClearCache) completeClearCache.addEventListener('click', this.handleCompleteClearCache.bind(this));
+
+            const save1GB = this.catCatch.querySelector("#save1GB");
+            if (save1GB) save1GB.addEventListener('click', (event) => {
+                localStorage.setItem("CatCatchCatch_save1GB", event.target.checked ? "checked" : "");
+            });
 
             // 自动跳转到缓冲节点
             // this.autoToBufferedFlag = true;
@@ -580,6 +586,11 @@
 
                                 if (this.enable && argumentsList[0]) {
                                     this.mediaSize += argumentsList[0].byteLength || 0;
+                                    if (this.mediaSize >= 1024 * 1024 * 1024 && localStorage.getItem("CatCatchCatch_save1GB") == "checked") {
+                                        this.catchDownload();
+                                        this.clearCache();
+
+                                    }
                                     if (this.tips) {
                                         this.tips.innerHTML = this.i18n("capturingData", "捕获数据中...") + ": " + this.byteToSize(this.mediaSize);
                                     }

@@ -285,7 +285,17 @@ function init() {
             });
         }
     } else {
-        hls.loadSource(_m3u8Url);
+        /*
+        * firefox 不允许直接下载跨域blob内容 由content-script获取blob内容发回页面
+        */
+        if (_m3u8Url.startsWith("blob:") && G.isFirefox) {
+            chrome.tabs.sendMessage(tabId, { Message: "getM3u8Text", url: _m3u8Url }, function (result) {
+                const blobUrl = URL.createObjectURL(new Blob([new TextEncoder("utf-8").encode(result)]));
+                hls.loadSource(blobUrl);
+            });
+        } else {
+            hls.loadSource(_m3u8Url);
+        }
     }
 
     G.saveAs && $("#saveAs").prop("checked", true);
@@ -294,12 +304,12 @@ function init() {
 const channel = new BroadcastChannel('m3u8Channel');
 channel.onmessage = (event) => {
     const data = event.data;
-    if (data.Message == "mergeData" && data.data && _isMaster == 1) {
+    if (data.Message == "mergeData" && data.data && _isMaster == 1 && _taskId == data.data.taskId) {
         data.data.tabId = currentTabId;
         createIframeFFmpeg(data.data);
-        channel.postMessage({ Message: "mergeDataReceived", taskId: data.data?.taskId });
+        channel.postMessage({ Message: "mergeDataReceived", taskId: data.data.taskId });
     }
-    if (data.Message == "mergeDataReceived" && _isMaster == 0) {
+    if (data.Message == "mergeDataReceived" && _isMaster == 0 && _taskId == data.taskId) {
         setTimeout(() => {
             $progress.html(i18n.sendFfmpeg);
             $("#autoClose").prop("checked") && closeTab();
@@ -431,14 +441,13 @@ hls.on(Hls.Events.MANIFEST_PARSED, function (event, data) {
         return;
     }
     function getNewUrl(item) {
-        const url = encodeURIComponent(item.uri ?? item.url);
-        const referer = requestHeaders.referer ? "&requestHeaders=" + encodeURIComponent(JSON.stringify(requestHeaders)) : "&initiator=" + (_initiator ? encodeURIComponent(_initiator) : "");
-        const title = _title ? encodeURIComponent(_title) : "";
-        const name = GetFile(item.uri ?? item.url);
-        let newUrl = `/m3u8.html?url=${url}${referer}`;
-        if (title) { newUrl += `&title=${title}`; }
-        if (tabId) { newUrl += `&tabid=${tabId}`; }
-        if (key) { newUrl += `&key=${key}`; }
+        const rawUrl = item.uri ?? item.url;
+        const name = GetFile(rawUrl);
+        const params = new URLSearchParams(window.location.search);
+        params.set('url', rawUrl);
+        params.delete('autoDown');
+        params.delete('ffmpeg');
+        const newUrl = `/m3u8.html?${params.toString()}`;
         return [name, newUrl];
     }
 });
@@ -469,6 +478,40 @@ hls.on(Hls.Events.LEVEL_LOADED, function (event, data) {
         }
     }
     currentLevel = data.level;
+
+    //自定义文件名 下拉选项
+    const $options = $("#name-options");
+    // 标题
+    if (_title) {
+        let title = _title;
+        if (title.length >= 150) {
+            title = title.substring(title.length - 150);
+        }
+        $options.append(`<option value="${title}">${title}</option>`);
+    }
+
+    // 文件名
+    if (_fileName) {
+        let fileName = _fileName;
+        if (fileName.length >= 150) {
+            fileName = fileName.substring(fileName.length - 150);
+        }
+        $options.append(`<option value="${fileName}">${fileName}</option>`);
+    }
+
+    // m3u8链接最后一部分
+    if (_m3u8Url) {
+        let fileName = GetFileNameNoExt(_m3u8Url);
+        if (fileName != "NULL" && fileName.length != 0) {
+            $options.append(`<option value="${stringModify(fileName)}">${stringModify(fileName)}</option>`);
+        }
+    }
+
+    // 第一个ts链接文件名
+    let mapFileName = GetFileNameNoExt(_fragments[0].initSegment?.url ?? _fragments[0].url);
+    if (mapFileName != "NULL" && mapFileName.length != 0) {
+        $options.append(`<option value="${stringModify(mapFileName)}">${stringModify(mapFileName)}</option>`);
+    }
 });
 
 // 监听 ERROR m3u8解析错误
@@ -700,7 +743,7 @@ function parseTs(data) {
         $("#recorder").show();
         $(".videoInfo #info").html(i18n.liveHLS);
     } else {
-        estimateSize(_fragments); // 估算文件大小
+        estimateFileInfo(_fragments, data.totalduration); // 估算文件大小
         $("#count").append(i18n("m3u8Info", [_fragments.length, secToTime(data.totalduration)]));
         $("#sendFfmpeg").show();
         $("#retryCount").parent().hide();
@@ -731,40 +774,41 @@ function parseTs(data) {
         });
     }
     function showKeyInfo(buffer, decryptdata, i) {
-        $("#tips").append(i18n.keyAddress + ': <input type="text" value="' + decryptdata.uri + '" spellcheck="false" readonly="readonly" class="keyUrl">');
-        if (buffer) {
-            $("#tips").append(`
-                <div class="key flex">
-                    <div class="method">${i18n.encryptionAlgorithm}: <input type="text" value="${decryptdata.method ? decryptdata.method : "NONE"}" spellcheck="false" readonly="readonly"></div>
-                    <div>${i18n.key}(Hex): <input type="text" value="${ArrayBufferToHexString(buffer)}" spellcheck="false" readonly="readonly"></div>
-                    <div>${i18n.key}(Base64): <input type="text" value="${ArrayBufferToBase64(buffer)}" spellcheck="false" readonly="readonly"></div>
-                </div>`);
-        } else {
-            $("#tips").append(`
-                <div class="key flex">
-                    <div class="method">${i18n.encryptionAlgorithm}: <input type="text" value="${decryptdata.method ? decryptdata.method : "NONE"}" spellcheck="false" readonly="readonly"></div>
-                    <div>${i18n.key}(Hex): <input type="text" value="${i18n.keyDownloadFailed}" spellcheck="false" readonly="readonly"></div>
-                </div>`);
+        const $tips = $("#tips");
+        $tips.append(`${i18n.keyAddress}: <input type="text" value="${decryptdata.uri}" spellcheck="false" readonly="readonly" class="keyUrl">`);
+        // 准备算法及密钥字段
+        const method = decryptdata.method || "NONE";
+        const keyHex = buffer ? ArrayBufferToHexString(buffer) : i18n.keyDownloadFailed;
+        const keyBase64 = buffer ? ArrayBufferToBase64(buffer) : null; // buffer 为空时不显示 Base64
+        // 构建 key 区块（包含算法、Hex、可能的 Base64）
+        let keyBlock = `
+        <div class="method">${i18n.encryptionAlgorithm}: <input type="text" value="${method}" spellcheck="false" readonly="readonly"></div>
+        <div>${i18n.key}(Hex): <input type="text" value="${keyHex}" spellcheck="false" readonly="readonly"></div>`;
+        if (keyBase64 !== null) {
+            keyBlock += `<div>${i18n.key}(Base64): <input type="text" value="${keyBase64}" spellcheck="false" readonly="readonly"></div>`;
         }
-        // 如果是默认iv 则不显示
-        let iv = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, i + 1]).toString();
-        let iv2 = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, i]).toString();
-        let _iv = decryptdata.iv.toString();
-        if (_iv != iv && _iv != iv2) {
-            iv = "0x" + ArrayBufferToHexString(decryptdata.iv.buffer);
-            $("#tips").append('<div class="key flex"><div>Offset(IV): <input type="text" value="' + iv + '" spellcheck="false" readonly="readonly" class="offset"></div></div>');
+        // 检查 IV 是否为默认值（常见 MPEG-DASH 的默认 IV：末尾为 i 或 i+1）
+        const defaultIv1 = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, i + 1]).toString();
+        const defaultIv2 = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, i]).toString();
+        const currentIv = decryptdata.iv.toString();
+        if (currentIv !== defaultIv1 && currentIv !== defaultIv2) {
+            const ivHex = "0x" + ArrayBufferToHexString(decryptdata.iv.buffer);
+            keyBlock += `<div>Offset(IV): <input type="text" value="${ivHex}" spellcheck="false" readonly="readonly" class="offset"></div>`;
         }
+        // 整体放入同一个 flex 容器
+        $tips.append(`<div class="key flex">${keyBlock}</div>`);
     }
 }
 /**
  * 估算整个视频大小
- * 获取3个切片大小 取平均值 * 切片数量
+ * 获取几个切片大小 取平均值 * 切片数量
  * @param {Array} url ts对象数组
+ * @param {number} duration 视频总时长
  */
-async function estimateSize(fragments) {
+async function estimateFileInfo(fragments, duration) {
     if (!fragments || fragments.length === 0) return;
 
-    const samplesToCheck = Math.min(5, fragments.length);
+    const samplesToCheck = Math.min(10, fragments.length);
     let totalSize = 0;
     let successfulFetches = 0;
 
@@ -794,6 +838,8 @@ async function estimateSize(fragments) {
     if (successfulFetches > 0) {
         estimateFileSize = totalSize / successfulFetches * fragments.length;
         $("#estimateFileSize").append(` ${i18n.estimateSize}: ${byteToSize(estimateFileSize)}`);
+        const bitrate = (estimateFileSize * 8) / duration;
+        $("#estimateBitrate").append(` ${i18n.bitrate}: ${formatBitrate(bitrate)}`);
     }
 }
 /**************************** 监听 / 按钮绑定 ****************************/
@@ -1263,6 +1309,38 @@ $("#sendFfmpeg").click(function () {
     $("#mergeTs").click();
 });
 
+// 监听 正则过滤 回车
+$("#regular").keyup(function (event) {
+    if (event.key === "Enter") {
+        const list = document.querySelector("#mediaList");
+        const reg = new RegExp($("#regular").val());
+        list.querySelectorAll(".media-item").forEach((item, index) => {
+            if (reg.test(_fragments[index].url)) {
+                item.classList.add("selected");
+                _fragments[index].selected = true;
+            } else {
+                item.classList.remove("selected");
+                _fragments[index].selected = false;
+            }
+        });
+    }
+});
+
+// 反选
+$("#invertSelection").click(function () {
+    const list = document.querySelector("#mediaList");
+    list.querySelectorAll(".media-item").forEach((item, index) => {
+        if (item.classList.contains("selected")) {
+            item.classList.remove("selected");
+            _fragments[index].selected = false;
+        } else {
+            item.classList.add("selected");
+            _fragments[index].selected = true;
+        }
+    });
+});
+
+
 // 找到真密钥
 $("#searchingForRealKey").click(function () {
     const keys = $('#maybeKey option').map(function () {
@@ -1314,6 +1392,7 @@ $("#searchingForRealKey").click(function () {
                 return true;
             }
         }
+        return false;
     }
     const decryptor = new AESDecryptor();
     fetch(_fragments[0].url)
@@ -1892,10 +1971,30 @@ document.querySelector("#mediaList").addEventListener("click", (e) => {
     if (e.detail === 2) {
         document.querySelector("#mediaList").classList.toggle("expand-all");
     }
+    if (document.querySelector("#mergeTs").classList.contains("no-drop")) {
+        return;
+    }
     const idx = mediaItem.dataset.index;
     _fragments[idx].selected = !_fragments[idx].selected;
     mediaItem.classList.toggle("selected");
 });
+
+// 获取文件名不带扩展名
+function GetFileNameNoExt(url) {
+    url = GetFile(url);
+    url = url.split(".");
+    if (url.length > 1) {
+        url.pop();
+    }
+    url = url.join(".");
+    if (url.length >= 150) {
+        url = url.substring(url.length - 150);
+    }
+    if (url.length == 0) {
+        url = "NULL";
+    }
+    return stringModify(url);
+}
 
 // 获取文件名
 function GetFile(str) {
@@ -1917,18 +2016,9 @@ function GetFileName(url) {
         }
         return _title;
     }
-    url = GetFile(url);
-    url = url.split(".");
-    url.length > 1 && url.pop();
-    url = url.join(".");
-    if (url.length >= 150) {
-        url = url.substring(url.length - 150);
-    }
-    if (url.length == 0) {
-        url = "NULL";
-    }
-    return stringModify(url);
+    return GetFileNameNoExt(url);
 }
+
 // 获取扩展名
 function GetExt(url) {
     let fileName = GetFile(url);
@@ -2099,6 +2189,7 @@ function autoMerge() {
 function createIframeFFmpeg(fileData) {
     if (!iframeFFmpeg) {
         iframeFFmpeg = document.createElement('iframe');
+        iframeFFmpeg.allow = "fullscreen";
         document.querySelector("#iframeBox").appendChild(iframeFFmpeg);
         iframeFFmpeg.onload = function () {
             iframeFFmpegReady = true;

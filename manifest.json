@@ -32,7 +32,8 @@
     "alarms",
     "declarativeNetRequest",
     "scripting",
-    "sidePanel"
+    "sidePanel",
+    "contextMenus"
   ],
   "commands": {
     "_execute_action": {},
@@ -56,6 +57,9 @@
     },
     "deepSearch": {
       "description": "__MSG_deepSearch__"
+    },
+    "preview": {
+      "description": "__MSG_preview__"
     }
   },
   "host_permissions": [
@@ -76,6 +80,6 @@
     }
   ],
   "default_locale": "en",
-  "version": "2.6.7",
+  "version": "2.6.9",
   "incognito": "split"
 }

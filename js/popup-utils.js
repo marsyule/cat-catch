@@ -57,14 +57,20 @@ function isMedia(data) {
 function aria2AddUri(data, success, error) {
     const json = {
         "jsonrpc": "2.0",
-        "id": "cat-catch-" + data.requestId,
+        "id": "cat-catch-" + (data.requestId || Date.now()),
         "method": "aria2.addUri",
         "params": []
     };
     if (G.aria2RpcToken) {
         json.params.push(`token:${G.aria2RpcToken}`);
     }
-    const params = { out: data.downFileName };
+    const params = {};
+    if (data.downFileName) {
+        params.out = data.downFileName;
+    }
+    if (G.aria2RpcDir) {
+        params.dir = G.aria2RpcDir;
+    }
     if (G.enableAria2RpcReferer) {
         params.header = [];
         params.header.push("User-Agent: " + (G.userAgent ? G.userAgent : navigator.userAgent));

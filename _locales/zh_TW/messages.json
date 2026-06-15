@@ -519,7 +519,7 @@
     "message": "開啟下載目錄"
   },
   "downloadDir": {
-    "message": "打載目錄"
+    "message": "下載目錄"
   },
   "sendFfmpeg": {
     "message": "發送到線上ffmpeg"
@@ -1027,5 +1027,17 @@
   },
   "iframeFFmpeg": {
     "message": "內嵌ffmpeg服務"
+  },
+  "send2localTips": {
+    "message": "在發送前合併數據？點擊【確定】合併，或點擊【取消】逐條發送。"
+  },
+  "removeFailedPreviewFiles": {
+    "message": "移除無法預覽的檔案"
+  },
+  "save": {
+    "message": "儲存"
+  },
+  "contextMenus": {
+    "message": "右鍵菜單"
   }
 }

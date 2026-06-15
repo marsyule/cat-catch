@@ -519,7 +519,7 @@
     "message": "打开下载目录"
   },
   "downloadDir": {
-    "message": "打载目录"
+    "message": "下载目录"
   },
   "sendFfmpeg": {
     "message": "发送到在线ffmpeg"
@@ -1027,5 +1027,17 @@
   },
   "iframeFFmpeg": {
     "message": "嵌套在线ffmpeg"
+  },
+  "send2localTips": {
+    "message": "是否合并数据发送？点击【确定】合并，点击【取消】逐条发送。"
+  },
+  "removeFailedPreviewFiles": {
+    "message": "删除无法预览的文件"
+  },
+  "save": {
+    "message": "保存"
+  },
+  "contextMenus": {
+    "message": "右键菜单"
   }
 }
